@@ -1,0 +1,13 @@
+# Python 运行产物与缓存
+__pycache__/
+*.pyc
+.paddlehub/
+.paddlenlp/
+
+# 运行时生成的数据（可随时重建）
+output/
+nlp_history.db
+
+# 系统文件
+Thumbs.db
+Desktop.ini

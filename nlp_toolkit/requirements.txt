@@ -1,0 +1,10 @@
+# nlp_toolkit 依赖清单
+# 主引擎 paddlehub（情感分析 senta_bilstm / 实体识别 LAC）需自行使用已装环境运行：
+#   推荐解释器 D:\python\python310\python310.exe（已预装 paddlehub 2.4.0 + paddle 2.6.2）
+# 以下为新增轻量依赖，在对应 Python 下执行：python310.exe -m pip install -r requirements.txt
+
+flask>=2.0
+jieba>=0.42
+matplotlib>=3.5
+# 可选：词云功能（不装也不影响其他功能，report 会自动跳过）
+wordcloud>=1.8

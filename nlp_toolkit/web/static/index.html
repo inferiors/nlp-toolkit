@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>中文 NLP 分析工具箱</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, "Microsoft YaHei", sans-serif; margin: 0; background: #f5f7fa; color: #2c2c2a; }
+    header { background: #185FA5; color: #fff; padding: 16px 24px; }
+    header h1 { margin: 0; font-size: 18px; font-weight: 500; }
+    .wrap { max-width: 880px; margin: 24px auto; padding: 0 16px; }
+    .card { background: #fff; border: 1px solid #d3d1c7; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    label { display: block; font-size: 13px; margin: 12px 0 6px; color: #444441; }
+    textarea { width: 100%; min-height: 96px; border: 1px solid #ccc; border-radius: 8px; padding: 10px; font-size: 14px; resize: vertical; }
+    select, button { font-size: 14px; padding: 8px 14px; border-radius: 8px; border: 1px solid #bbb; }
+    button { background: #185FA5; color: #fff; border: none; cursor: pointer; margin-top: 14px; }
+    button:hover { background: #0c447c; }
+    .result { margin-top: 16px; font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
+    .tag { display: inline-block; background: #e6f1fb; color: #0c447c; border-radius: 6px; padding: 2px 8px; margin: 2px 4px 2px 0; }
+    .pos { background: #fcebeb; color: #a32d2d; }
+    .neg { background: #e6f1fb; color: #185fa5; }
+    .err { color: #a32d2d; }
+    h3 { font-size: 15px; font-weight: 500; margin: 0 0 10px; }
+  </style>
+</head>
+<body>
+  <header><h1>中文 NLP 分析工具箱</h1></header>
+  <div class="wrap">
+    <div class="card">
+      <h3>文本分析</h3>
+      <label>选择任务</label>
+      <select id="task"></select>
+      <label>输入文本</label>
+      <textarea id="text" placeholder="请输入要分析的中文文本...">百度公司位于北京海淀区，李彦宏创办了这家人工智能企业。今天天气晴朗，我去电影院看了一部非常好看的科幻电影，餐厅的菜品味道鲜美，服务态度也很周到。</textarea>
+      <button id="run">开始分析</button>
+      <div class="result" id="result"></div>
+    </div>
+    <div class="card">
+      <h3>最近分析历史</h3>
+      <div id="history" class="result"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    async function loadTasks() {
+      const r = await fetch("/api/tasks");
+      const tasks = await r.json();
+      $("task").innerHTML = Object.entries(tasks)
+        .map(([k, v]) => `<option value="${k}">${v}</option>`)
+        .join("");
+    }
+
+    function renderResult(task, data) {
+      if (task === "sentiment") {
+        const cls = data.sentiment === "positive" ? "pos" : "neg";
+        return `情感：<span class="tag ${cls}">${data.sentiment}</span> 置信度：${data.confidence}`;
+      }
+      if (task === "ner") {
+        if (!data.entities.length) return "未识别出实体。";
+        return "实体：" + data.entities.map(e => `<span class="tag">${e.word} / ${e.type}</span>`).join("");
+      }
+      if (task === "keyword") {
+        return "关键词：" + data.keywords.map(k => `<span class="tag">${k.word} (${k.weight})</span>`).join("");
+      }
+      if (task === "classification") {
+        return `主题分类：<span class="tag">${data.category}</span> 命中：${data.total_hits}`;
+      }
+      return JSON.stringify(data, null, 2);
+    }
+
+    async function runAnalyze() {
+      const task = $("task").value;
+      const text = $("text").value.trim();
+      $("result").innerHTML = "分析中...";
+      try {
+        const r = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ task, text }),
+        });
+        const j = await r.json();
+        if (!r.ok) { $("result").innerHTML = `<span class="err">错误：${j.error || "分析失败"}</span>`; return; }
+        $("result").innerHTML = renderResult(j.task, j.result);
+        loadHistory();
+      } catch (e) {
+        $("result").innerHTML = `<span class="err">请求失败：${e}</span>`;
+      }
+    }
+
+    async function loadHistory() {
+      const r = await fetch("/api/history");
+      const rows = await r.json();
+      if (!rows.length) { $("history").innerHTML = "暂无历史。"; return; }
+      $("history").innerHTML = rows.map(rw =>
+        `<div>· [${rw.task}] ${rw.text.slice(0, 40)} → ${rw.result.slice(0, 60)}</div>`
+      ).join("");
+    }
+
+    $("run").addEventListener("click", runAnalyze);
+    loadTasks();
+    loadHistory();
+  </script>
+</body>
+</html>
